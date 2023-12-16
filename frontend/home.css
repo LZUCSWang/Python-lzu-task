@@ -1,0 +1,129 @@
+* {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+    /*随页面缩放居中不失真*/
+}
+
+.container {
+    width: 90%;
+    max-width: 1200px;
+    margin: 0 auto;
+}
+
+.header {
+    background-color: #f0f0f0;
+    height: 80px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+
+.logo {
+    font-size: 32px;
+    font-weight: bold;
+    color: #333;
+    margin-left: 20px;
+}
+
+.nav {
+    list-style: none;
+    display: flex;
+    margin-right: 20px;
+}
+
+.nav li {
+    margin-left: 20px;
+}
+
+.nav a {
+    text-decoration: none;
+    color: #333;
+    font-size: 18px;
+}
+
+.nav a:hover {
+    color: #666;
+}
+
+.banner {
+    height: auto;
+    margin: 20px 0;
+    border-radius: 10px;
+}
+
+.banner img {
+    /* 撑满页面 */
+    width: 100%;
+    height: 100%;
+    background-size: cover;
+    background-position: center;
+}
+
+.banner h1 {
+    color: rgb(17, 17, 17);
+    font-size: 48px;
+    text-align: center;
+    line-height: 100px;
+}
+
+.content {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    grid-gap: 20px;
+    margin: 20px 0;
+}
+
+.card {
+    background-color: white;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    border-radius: 10px;
+    /* 圆角 */
+    padding: 20px;
+}
+
+.card img {
+    width: 50%;
+    height: 50%;
+    object-fit: cover;
+    border-radius: 10px;
+}
+
+.card h3 {
+    font-size: 24px;
+    color: #333;
+    margin-top: 10px;
+}
+
+.card p {
+    font-size: 16px;
+    color: #666;
+    margin-top: 10px;
+}
+
+.card a {
+    display: inline-block;
+    text-decoration: none;
+    color: white;
+    background-color: #333;
+    padding: 10px 20px;
+    border-radius: 5px;
+    margin-top: 10px;
+}
+
+.card a:hover {
+    background-color: #666;
+}
+
+.footer {
+    background-color: #333;
+    height: 25px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.footer p {
+    color: white;
+    font-size: 18px;
+}
