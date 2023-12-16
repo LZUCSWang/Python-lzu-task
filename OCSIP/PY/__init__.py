@@ -9,6 +9,13 @@ import os
 import shutil
 import time
 import sqlite3
+import onnxruntime as ort
+from PIL import Image
+import numpy as np
+import time
+
+import glob
+from collections import Counter
 __all__ = [
     "login",
     "get_datasets",
@@ -19,13 +26,7 @@ __all__ = [
     "upload_data",
     "delete_data",
 ]
-import onnxruntime as ort
-from PIL import Image
-import numpy as np
-import time
 
-import glob
-from collections import Counter
 
 __all__ = ["predict"]
 
@@ -124,6 +125,7 @@ def _dump_json(path: str, data: Dict[str, Any]) -> bool:
 
 
 token2account = {}
+
 
 def ftoken2account(token):
     return token2account[token]
@@ -313,7 +315,6 @@ def upload_data(
     - class
     - path
     """
-    # freshtoken2account()
     account = token2account[token]
     conn = sqlite3.connect('db.sqlite3')
     c = conn.cursor()
@@ -324,8 +325,8 @@ def upload_data(
         path = f"static/data/pictures/{id}.{name.split('.')[-1]}"
         with open(path, "wb") as f:
             f.write(img)
-        c.execute("INSERT INTO dataset (data_id, data_name, data_created_time, data_class, data_path, dataset_id) VALUES (?, ?, ?, ?, ?, (SELECT id FROM datasets WHERE dataset_id = ?))",
-                  (id, name, created_time, predict(path), path, dataset_id,))
+        c.execute("INSERT INTO dataset (data_id, data_name, data_created_time, data_class, data_path, dataset_id,account_id) VALUES (?, ?, ?, ?, ?, (SELECT id FROM datasets WHERE dataset_id = ? ), (SELECT id FROM account WHERE username = ? ))",
+                  (id, name, created_time, predict(path), path, dataset_id, account,))
     conn.commit()
     conn.close()
     return True
@@ -336,176 +337,59 @@ def delete_data(token: str, dataset_id: str, data_id: str) -> bool:
     """
     return success or not
     """
-    # freshtoken2account()
     account = token2account[token]
-    data = _load_json(f"static/data/datasets/{account}/{dataset_id}.json")
-    if data_id not in data:
+    conn = sqlite3.connect('db.sqlite3')
+    c = conn.cursor()
+    c.execute("SELECT * FROM dataset WHERE data_id = ? AND dataset_id = (SELECT id FROM datasets WHERE dataset_id = ? AND account = (SELECT id FROM account WHERE username = ?))",
+              (data_id, dataset_id, account,))
+    rows = c.fetchall()
+    if len(rows) == 0:
         return False
-    os.remove(data[data_id]["path"])
-    del data[data_id]
-    _dump_json(f"static/data/datasets/{account}/{dataset_id}.json", data)
+    c.execute("DELETE FROM dataset WHERE data_id = ? AND dataset_id = (SELECT id FROM datasets WHERE dataset_id = ? AND account = (SELECT id FROM account WHERE username = ?))",
+              (data_id, dataset_id, account,))
+    conn.commit()
+    conn.close()
     return True
 
 
-def json2sqlite():
-    # data = _load_json("static/data/accounts.json")
-    accounts = _load_json(
-        "static\data\\accounts.json")
-    for username in accounts:
-        # print(username)
-        password = accounts[username]
-        token2account[password] = username
-        # print(token)
-        datasets = get_datasets(password)
-        # print(datasets)
-        for dataset_id in datasets:
-            # print(dataset_id)
-            dataset_name = datasets[dataset_id]["name"]
-            created_time = datasets[dataset_id]["created_time"]
-            # updated_time = datasets[dataset_id]["updated_time"]
-            updated_time = datasets[dataset_id]["updated_time"]
-            data = get_dataset(token=password, dataset_id=dataset_id)
-            # print(data)
-            for data_id in data:
-                # print(data_id)
-                data_name = data[data_id]["name"]
-                # data_created_time = data[data_id]["created_time"]
-                data_created_time = data[data_id]["created_time"]
-                data_class = data[data_id]["class"]
-                data_path = data[data_id]["path"]
+# def json2sqlite():
+#     # data = _load_json("static/data/accounts.json")
+#     accounts = _load_json(
+#         "static\data\\accounts.json")
+#     for username in accounts:
+#         # print(username)
+#         password = accounts[username]
+#         token2account[password] = username
+#         # print(token)
+#         datasets = get_datasets(password)
+#         # print(datasets)
+#         for dataset_id in datasets:
+#             # print(dataset_id)
+#             dataset_name = datasets[dataset_id]["name"]
+#             created_time = datasets[dataset_id]["created_time"]
+#             # updated_time = datasets[dataset_id]["updated_time"]
+#             updated_time = datasets[dataset_id]["updated_time"]
+#             data = get_dataset(token=password, dataset_id=dataset_id)
+#             # print(data)
+#             for data_id in data:
+#                 # print(data_id)
+#                 data_name = data[data_id]["name"]
+#                 # data_created_time = data[data_id]["created_time"]
+#                 data_created_time = data[data_id]["created_time"]
+#                 data_class = data[data_id]["class"]
+#                 data_path = data[data_id]["path"]
 
-                print(username, password, dataset_name, created_time,
-                      updated_time, data_name, data_created_time, data_class, data_path)
-                import sqlite3
-                conn = sqlite3.connect('db.sqlite3')
+#                 print(username, password, dataset_name, created_time,
+#                       updated_time, data_name, data_created_time, data_class, data_path)
+#                 conn = sqlite3.connect('db.sqlite3')
 
-                c = conn.cursor()
-                # c.execute(f"""insert or replace into home_data (username, token, dataset_name, dataset_created_time, dataset_updated_time, img_name, img_created_time, img_class, img_show) VALUES ('{username}', '{token}', '{dataset_name}', '{created_time}', '{updated_time}', '{data_name}', '{data_created_time}', '{data_class}', '{data_path}');
-                # insert or ignore into home_data (username, token, dataset_name, dataset_created_time, dataset_updated_time, img_name, img_created_time, img_class, img_show) VALUES ('{username}', '{token}', '{dataset_name}', '{created_time}', '{updated_time}', '{data_name}', '{data_created_time}', '{data_class}', '{data_path}');
-                # IF NOT EXISTS(SELECT * FROM home_data  WHERE ….) THEN INSERT INTO ... ELSE UPDATE SET ...""")
-                c.execute(
-                    f"INSERT OR IGNORE INTO home_data (username, password_md5,dataset_id, dataset_name, dataset_created_time, dataset_updated_time,img_id, img_name, img_created_time, img_class, img_show) VALUES ('{username}', '{password}', '{dataset_id}','{dataset_name}', '{created_time}', '{updated_time}', '{data_id}','{data_name}', '{data_created_time}', '{data_class}', '{data_path}')")
-                c.execute(
-                    "DELETE FROM home_data WHERE rowid NOT IN (SELECT MIN(rowid) FROM home_data GROUP BY img_show, username, dataset_id)")
-                conn.commit()
-                conn.close()
-
-
-def sqlite2json():
-    import sqlite3
-    conn = sqlite3.connect('db.sqlite3')
-    c = conn.cursor()
-    c.execute("SELECT * FROM home_data")
-    data = c.fetchall()
-    conn.close()
-    print(data)
-    for line in data:
-        len1, username, token, dataset_name, dataset_created_time, dataset_updated_time, img_name, img_created_time, img_class, img_show, dataset_id, img_id = line
-        import json
-        import os
-        if not os.path.exists('static/data/accounts.json'):
-            with open('static/data/accounts.json', 'w') as f:
-                json.dump({}, f)
-        with open('static/data/accounts.json', 'r') as f:
-            accounts = json.load(f)
-        accounts[username] = token
-        with open('static/data/accounts.json', 'w') as f:
-            json.dump(accounts, f)
-        if not os.path.exists(f'static/data/datasets/{username}.json'):
-            with open(f'static/data/datasets/{username}.json', 'w') as f:
-                json.dump({}, f)
-        with open(f'static/data/datasets/{username}.json', 'r') as f:
-            datasets = json.load(f)
-        datasets[dataset_id] = {
-            'name': dataset_name,
-            'created_time': dataset_created_time,
-            'updated_time': dataset_updated_time
-        }
-        with open(f'static/data/datasets/{username}.json', 'w') as f:
-            json.dump(datasets, f)
-        if not os.path.exists(f'static/data/datasets/{username}/{dataset_id}.json'):
-            with open(f'static/data/datasets/{username}/{dataset_id}.json', 'w') as f:
-                json.dump({}, f)
-        with open(f'static/data/datasets/{username}/{dataset_id}.json', 'r') as f:
-            dataset_data = json.load(f)
-        dataset_data[img_id] = {
-            'name': img_name,
-            'created_time': img_created_time,
-            'class': img_class,
-            'path': img_show
-        }
-        with open(f'static/data/datasets/{username}/{dataset_id}.json', 'w') as f:
-            json.dump(dataset_data, f)
-    return data
-    pass
-
-
-def clear_data(clearpic=True, clearsqlite=True):
-    import os
-    import shutil
-    import json
-    import sqlite3
-    if clearsqlite:
-        conn = sqlite3.connect('db.sqlite3')
-        c = conn.cursor()
-        c.execute("DELETE FROM account")
-        c.execute("DELETE FROM datasets")
-        c.execute("DELETE FROM dataset")
-        conn.commit()
-        conn.close()
-    folder = 'static/data/datasets'
-    for filename in os.listdir(folder):
-        file_path = os.path.join(folder, filename)
-        try:
-            if os.path.isfile(file_path) or os.path.islink(file_path):
-                os.unlink(file_path)
-            elif os.path.isdir(file_path):
-                shutil.rmtree(file_path)
-        except Exception as e:
-            print('Failed to delete %s. Reason: %s' % (file_path, e))
-    if clearpic:
-        folder = 'static/data/pictures'
-        for filename in os.listdir(folder):
-            file_path = os.path.join(folder, filename)
-            try:
-                if os.path.isfile(file_path) or os.path.islink(file_path):
-                    os.unlink(file_path)
-                elif os.path.isdir(file_path):
-                    shutil.rmtree(file_path)
-            except Exception as e:
-                print('Failed to delete %s. Reason: %s' % (file_path, e))
-
-    with open('static/data/accounts.json', 'w') as f:
-        json.dump({}, f)
-
-
-if __name__ == "__main__":
-    # test
-    # account = "test"
-    # password = "aaa"
-    # token = login(account, password)
-    # print("login:", token)
-    # did = creat_dataset(token, "bbb")
-    # print("creat_dataset:", did)
-    # rename = rename_dataset(token, did, "ccc")
-    # print("rename_dataset:", rename)
-    # with open("9200.png", "rb") as f:
-    #     data = f.read()
-    # data = upload_data(token, did, [("9200.png", data)])
-    # print("upload_data:", data)
-    # data = get_datasets(token)
-    # print("get_datasets:", data)
-    # data = get_dataset(token, did)
-    # print("get_dataset:", data)
-    # delete = delete_data(token, did, list(data.keys())[0])
-    # print("delete_data:", delete)
-    # data = get_dataset(token, did)
-    # print("get_dataset:", data)
-    # delete = delete_dataset(token, did)
-    # print("delete_dataset:", delete)
-    # data = get_datasets(token)
-    # print("get_datasets:", data)
-    # json2sqlite()
-    # sqlite2json()
-    clear_data()
-    pass
+#                 c = conn.cursor()
+#                 # c.execute(f"""insert or replace into home_data (username, token, dataset_name, dataset_created_time, dataset_updated_time, img_name, img_created_time, img_class, img_show) VALUES ('{username}', '{token}', '{dataset_name}', '{created_time}', '{updated_time}', '{data_name}', '{data_created_time}', '{data_class}', '{data_path}');
+#                 # insert or ignore into home_data (username, token, dataset_name, dataset_created_time, dataset_updated_time, img_name, img_created_time, img_class, img_show) VALUES ('{username}', '{token}', '{dataset_name}', '{created_time}', '{updated_time}', '{data_name}', '{data_created_time}', '{data_class}', '{data_path}');
+#                 # IF NOT EXISTS(SELECT * FROM home_data  WHERE ….) THEN INSERT INTO ... ELSE UPDATE SET ...""")
+#                 c.execute(
+#                     f"INSERT OR IGNORE INTO home_data (username, password_md5,dataset_id, dataset_name, dataset_created_time, dataset_updated_time,img_id, img_name, img_created_time, img_class, img_show) VALUES ('{username}', '{password}', '{dataset_id}','{dataset_name}', '{created_time}', '{updated_time}', '{data_id}','{data_name}', '{data_created_time}', '{data_class}', '{data_path}')")
+#                 c.execute(
+#                     "DELETE FROM home_data WHERE rowid NOT IN (SELECT MIN(rowid) FROM home_data GROUP BY img_show, username, dataset_id)")
+#                 conn.commit()
+#                 conn.close()

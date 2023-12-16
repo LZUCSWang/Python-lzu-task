@@ -1,3 +1,4 @@
+from django.utils.safestring import mark_safe
 from django.contrib import admin
 from .models import account, datasets, dataset
 
@@ -25,21 +26,20 @@ class datasetsAdmin(admin.ModelAdmin):
                     'dataset_updated_time', 'account']
     list_filter = ['account']
 
-from django.utils.safestring import mark_safe
 
 class datasetAdmin(admin.ModelAdmin):
     list_display = ['data_id', 'data_name', 'data_created_time',
-                    'data_class', 'dataset', 'data_path']
-    list_filter = ['dataset']
-    readonly_fields = ('data_path',)  #必须加这行 否则访问编辑页面会报错
-    def data_path(self, obj):
-        return mark_safe(u'< img src="%s" width="100px" />' % obj.file.url)
+                    'data_class', 'dataset','account', 'data_path']
+    list_filter = ['dataset','data_class']
+    readonly_fields = ('data_path',)  # 必须加这行 否则访问编辑页面会报错
     # def data_path(self, obj):
-    #     return obj.image.url if obj.image else ''
+    #     return mark_safe(u'< img src="%s" width="100px" />' % obj.file.url)
+    # # def data_path(self, obj):
+    # #     return obj.image.url if obj.image else ''
 
-    data_path.short_description = 'Image'
-    # 页面显示的字段名称
-    # image_data.short_description = u'品牌图片'
+    # data_path.short_description = 'Image'
+    # # 页面显示的字段名称
+    # # image_data.short_description = u'品牌图片'
 
 
 # admin.site.register(data, dataAdmin)

@@ -1,5 +1,5 @@
 from django.db import models
-from PY import sqlite2json, clear_data
+# from PY import sqlite2json, clear_data
 # models.py
 
 
@@ -100,6 +100,8 @@ class dataset(models.Model):
         upload_to='static/data/pictures', verbose_name='图片路径')
     dataset = models.ForeignKey(
         datasets, on_delete=models.CASCADE, verbose_name='数据集')  # 一对多
+    account = models.ForeignKey(
+        account, on_delete=models.CASCADE, verbose_name='用户')  # 一对多
 
     class Meta:
         db_table = 'dataset'
